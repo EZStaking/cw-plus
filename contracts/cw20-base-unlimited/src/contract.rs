@@ -97,8 +97,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    must_pay(&_info, "ujuno")?;
-    one_coin(&_info)?;
+    // must_pay(&_info, "ujuno")?;
+    // one_coin(&_info)?;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     // check valid token info
     msg.validate()?;
