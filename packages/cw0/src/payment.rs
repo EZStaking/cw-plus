@@ -27,10 +27,40 @@ pub fn one_coin(info: &MessageInfo) -> Result<Coin, PaymentError> {
     }
 }
 
+/// If exactly one coin was sent, returns it regardless of denom.
+/// Returns error if 0 or 2+ coins were sent
+pub fn one_coin_amount(info: &MessageInfo, amount: Uint128) -> Result<Coin, PaymentError> {
+    match info.funds.len() {
+        0 => Err(PaymentError::NoFunds {}),
+        1 => {
+            let coin = &info.funds[0];
+            if coin.amount.is_zero() {
+                Err(PaymentError::NoFunds {})
+            } else if coin.amount < amount {
+                Err(PaymentError::NoEnoughFunds {})
+            } else {
+                Ok(coin.clone())
+            }
+        }
+        _ => Err(PaymentError::MultipleDenoms {}),
+    }
+}
+
 /// Requires exactly one denom sent, which matches the requested denom.
 /// Returns the amount if only one denom and non-zero amount. Errors otherwise.
 pub fn must_pay(info: &MessageInfo, denom: &str) -> Result<Uint128, PaymentError> {
     let coin = one_coin(info)?;
+    if coin.denom != denom {
+        Err(PaymentError::MissingDenom(denom.to_string()))
+    } else {
+        Ok(coin.amount)
+    }
+}
+
+/// Requires exactly one denom sent, which matches the requested denom.
+/// Returns the amount if only one denom and non-zero amount. Errors otherwise.
+pub fn must_pay_amount(info: &MessageInfo, denom: &str, amount: Uint128) -> Result<Uint128, PaymentError> {
+    let coin = one_coin_amount(info, amount)?;
     if coin.denom != denom {
         Err(PaymentError::MissingDenom(denom.to_string()))
     } else {
@@ -65,6 +95,9 @@ pub enum PaymentError {
 
     #[error("No funds sent")]
     NoFunds {},
+
+    #[error("Not enough funds sent")]
+    NoEnoughFunds {},
 
     #[error("This message does no accept funds")]
     NonPayable {},
