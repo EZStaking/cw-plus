@@ -235,31 +235,6 @@
       "additionalProperties": false
     },
     {
-      "description": "Only with the \"mintable\" extension. If authorized, creates amount new tokens and adds to the recipient balance.",
-      "type": "object",
-      "required": [
-        "mint"
-      ],
-      "properties": {
-        "mint": {
-          "type": "object",
-          "required": [
-            "amount",
-            "recipient"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "recipient": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
       "description": "Only with the \"marketing\" extension. If authorized, updates marketing metadata. Setting None/null for any of these will leave it unchanged. Setting Some(\"\") will clear this field on the contract storage",
       "type": "object",
       "required": [

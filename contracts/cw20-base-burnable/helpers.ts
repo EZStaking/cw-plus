@@ -25,8 +25,7 @@ import { calculateFee } from "@cosmjs/stargate"
  *     name: "Potato Coin",
  *     symbol: "TATER",
  *     decimals: 2,
- *     initial_balances: [{ address: addr, amount: "10000" }],
- *     mint: { "minter": addr }
+ *     initial_balances: [{ address: addr, amount: "10000" }]
  *   };
  *   const instance = await contract.instantiate(addr, codeId, initMsg, 'Potato Coin!', pebblenetOptions);
  *
@@ -64,10 +63,8 @@ interface CW20Instance {
   allAllowances: (owner: string, startAfter?: string, limit?: number) => Promise<AllAllowancesResponse>
   allAccounts: (startAfter?: string, limit?: number) => Promise<readonly string[]>
   tokenInfo: () => Promise<any>
-  minter: () => Promise<any>
 
   // actions
-  mint: (txSigner: string, recipient: string, amount: string) => Promise<string>
   transfer: (txSigner: string, recipient: string, amount: string) => Promise<string>
   send: (txSigner: string, recipient: string, amount: string, msg: Record<string, unknown>) => Promise<string>
   burn: (txSigner: string, amount: string) => Promise<string>
@@ -131,18 +128,6 @@ export const CW20 = (client: SigningCosmWasmClient, options: Options): CW20Contr
 
     const tokenInfo = async (): Promise<any> => {
       return client.queryContractSmart(contractAddress, { token_info: {} })
-    }
-
-    const minter = async (): Promise<any> => {
-      return client.queryContractSmart(contractAddress, { minter: {} })
-    }
-
-    // mints tokens, returns transactionHash
-    const mint = async (senderAddress: string, recipient: string, amount: string): Promise<string> => {
-      const fee = calculateFee(options.fees.exec, options.gasPrice)
-
-      const result = await client.execute(senderAddress, contractAddress, { mint: { recipient, amount } }, fee)
-      return result.transactionHash
     }
 
     // transfers tokens, returns transactionHash
@@ -248,8 +233,6 @@ export const CW20 = (client: SigningCosmWasmClient, options: Options): CW20Contr
       allAllowances,
       allAccounts,
       tokenInfo,
-      minter,
-      mint,
       transfer,
       burn,
       increaseAllowance,

@@ -16,7 +16,7 @@ mod balance;
 mod coin;
 mod denom;
 mod helpers;
-mod logo;
+pub mod logo;
 mod msg;
 mod query;
 mod receiver;
