@@ -1,17 +1,9 @@
 use cosmwasm_std::{StdError, StdResult, Uint128};
-use cw20::{Cw20Coin, Logo, MinterResponse};
+use cw20::{Cw20Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub use cw20::Cw20ExecuteMsg as ExecuteMsg;
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
-pub struct InstantiateMarketingInfo {
-    pub project: Option<String>,
-    pub description: Option<String>,
-    pub marketing: Option<String>,
-    pub logo: Option<Logo>,
-}
+pub use crate::standard_msg::Cw20StandardExecuteMsg as ExecuteMsg;
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 pub struct InstantiateMsg {
@@ -19,15 +11,9 @@ pub struct InstantiateMsg {
     pub symbol: String,
     pub decimals: u8,
     pub initial_balances: Vec<Cw20Coin>,
-    pub mint: Option<MinterResponse>,
-    pub marketing: Option<InstantiateMarketingInfo>,
 }
 
 impl InstantiateMsg {
-    pub fn get_cap(&self) -> Option<Uint128> {
-        self.mint.as_ref().and_then(|v| v.cap)
-    }
-
     pub fn validate(&self) -> StdResult<()> {
         // Check name, symbol, decimals
         if !is_valid_name(&self.name) {
@@ -77,10 +63,6 @@ pub enum QueryMsg {
     /// Returns metadata on the contract - name, decimals, supply, etc.
     /// Return type: TokenInfoResponse.
     TokenInfo {},
-    /// Only with "mintable" extension.
-    /// Returns who can mint and the hard cap on maximum tokens after minting.
-    /// Return type: MinterResponse.
-    Minter {},
     /// Only with "allowance" extension.
     /// Returns how much spender can use from owner account, 0 if unset.
     /// Return type: AllowanceResponse.
@@ -100,14 +82,4 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    /// Only with "marketing" extension
-    /// Returns more metadata on the contract to display in the client:
-    /// - description, logo, project url, etc.
-    /// Return type: MarketingInfoResponse
-    MarketingInfo {},
-    /// Only with "marketing" extension
-    /// Downloads the mbeded logo data (if stored on chain). Errors if no logo data ftored for this
-    /// contract.
-    /// Return type: DownloadLogoResponse.
-    DownloadLogo {},
 }
