@@ -22,9 +22,6 @@ pub enum ContractError {
     #[error("No allowance for this account")]
     NoAllowance {},
 
-    #[error("Minting cannot exceed the cap")]
-    CannotExceedCap {},
-
     #[error("Logo binary data exceeds 5KB limit")]
     LogoTooBig {},
 

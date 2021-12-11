@@ -28,27 +28,6 @@
       "additionalProperties": false
     },
     {
-      "description": "Burn is a base message to destroy tokens forever",
-      "type": "object",
-      "required": [
-        "burn"
-      ],
-      "properties": {
-        "burn": {
-          "type": "object",
-          "required": [
-            "amount"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
       "description": "Send is a base message to transfer tokens to a contract and trigger an action on the receiving contract.",
       "type": "object",
       "required": [
@@ -202,56 +181,6 @@
               "$ref": "#/definitions/Binary"
             },
             "owner": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "description": "Only with \"approval\" extension. Destroys tokens forever",
-      "type": "object",
-      "required": [
-        "burn_from"
-      ],
-      "properties": {
-        "burn_from": {
-          "type": "object",
-          "required": [
-            "amount",
-            "owner"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "owner": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "description": "Only with the \"mintable\" extension. If authorized, creates amount new tokens and adds to the recipient balance.",
-      "type": "object",
-      "required": [
-        "mint"
-      ],
-      "properties": {
-        "mint": {
-          "type": "object",
-          "required": [
-            "amount",
-            "recipient"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
-            },
-            "recipient": {
               "type": "string"
             }
           }

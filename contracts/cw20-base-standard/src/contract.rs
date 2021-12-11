@@ -9,17 +9,17 @@ use cw0::{one_coin,must_pay};
 use cw2::set_contract_version;
 use cw20::{
     BalanceResponse, Cw20Coin, Cw20ReceiveMsg, DownloadLogoResponse, EmbeddedLogo, Logo, LogoInfo,
-    MarketingInfoResponse, MinterResponse, TokenInfoResponse,
+    MarketingInfoResponse, TokenInfoResponse,
 };
 
 use crate::allowances::{
-    execute_burn_from, execute_decrease_allowance, execute_increase_allowance, execute_send_from,
+    execute_decrease_allowance, execute_increase_allowance, execute_send_from,
     execute_transfer_from, query_allowance,
 };
 use crate::enumerable::{query_all_accounts, query_all_allowances};
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{MinterData, TokenInfo, BALANCES, LOGO, MARKETING_INFO, TOKEN_INFO};
+use crate::state::{TokenInfo, BALANCES, LOGO, MARKETING_INFO, TOKEN_INFO};
 use crate::state::{ALLOWANCES};
 
 
@@ -105,27 +105,12 @@ pub fn instantiate(
     // create initial accounts
     let total_supply = create_accounts(&mut deps, &msg.initial_balances)?;
 
-    if let Some(limit) = msg.get_cap() {
-        if total_supply > limit {
-            return Err(StdError::generic_err("Initial supply greater than cap").into());
-        }
-    }
-
-    let mint = match msg.mint {
-        Some(m) => Some(MinterData {
-            minter: deps.api.addr_validate(&m.minter)?,
-            cap: m.cap,
-        }),
-        None => None,
-    };
-
     // store token info
     let data = TokenInfo {
         name: msg.name,
         symbol: msg.symbol,
         decimals: msg.decimals,
-        total_supply,
-        mint,
+        total_supply
     };
     TOKEN_INFO.save(deps.storage, &data)?;
 
@@ -192,13 +177,12 @@ pub fn execute(
         ExecuteMsg::Transfer { recipient, amount } => {
             execute_transfer(deps, env, info, recipient, amount)
         }
-        ExecuteMsg::Burn { amount } => execute_burn(deps, env, info, amount),
         ExecuteMsg::Send {
             contract,
             amount,
             msg,
         } => execute_send(deps, env, info, contract, amount, msg),
-        ExecuteMsg::Mint { recipient, amount } => execute_mint(deps, env, info, recipient, amount),
+        // ExecuteMsg::Mint { recipient, amount } => execute_mint(deps, env, info, recipient, amount),
         ExecuteMsg::IncreaseAllowance {
             spender,
             amount,
@@ -214,7 +198,6 @@ pub fn execute(
             recipient,
             amount,
         } => execute_transfer_from(deps, env, info, owner, recipient, amount),
-        ExecuteMsg::BurnFrom { owner, amount } => execute_burn_from(deps, env, info, owner, amount),
         ExecuteMsg::SendFrom {
             owner,
             contract,
@@ -259,77 +242,6 @@ pub fn execute_transfer(
     let res = Response::new()
         .add_attribute("action", "transfer")
         .add_attribute("from", info.sender)
-        .add_attribute("to", recipient)
-        .add_attribute("amount", amount);
-    Ok(res)
-}
-
-pub fn execute_burn(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    amount: Uint128,
-) -> Result<Response, ContractError> {
-    if amount == Uint128::zero() {
-        return Err(ContractError::InvalidZeroAmount {});
-    }
-
-    // lower balance
-    BALANCES.update(
-        deps.storage,
-        &info.sender,
-        |balance: Option<Uint128>| -> StdResult<_> {
-            Ok(balance.unwrap_or_default().checked_sub(amount)?)
-        },
-    )?;
-    // reduce total_supply
-    TOKEN_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-        info.total_supply = info.total_supply.checked_sub(amount)?;
-        Ok(info)
-    })?;
-
-    let res = Response::new()
-        .add_attribute("action", "burn")
-        .add_attribute("from", info.sender)
-        .add_attribute("amount", amount);
-    Ok(res)
-}
-
-pub fn execute_mint(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    recipient: String,
-    amount: Uint128,
-) -> Result<Response, ContractError> {
-    if amount == Uint128::zero() {
-        return Err(ContractError::InvalidZeroAmount {});
-    }
-
-    let mut config = TOKEN_INFO.load(deps.storage)?;
-    if config.mint.is_none() || config.mint.as_ref().unwrap().minter != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // update supply and enforce cap
-    config.total_supply += amount;
-    if let Some(limit) = config.get_cap() {
-        if config.total_supply > limit {
-            return Err(ContractError::CannotExceedCap {});
-        }
-    }
-    TOKEN_INFO.save(deps.storage, &config)?;
-
-    // add amount to recipient balance
-    let rcpt_addr = deps.api.addr_validate(&recipient)?;
-    BALANCES.update(
-        deps.storage,
-        &rcpt_addr,
-        |balance: Option<Uint128>| -> StdResult<_> { Ok(balance.unwrap_or_default() + amount) },
-    )?;
-
-    let res = Response::new()
-        .add_attribute("action", "mint")
         .add_attribute("to", recipient)
         .add_attribute("amount", amount);
     Ok(res)
@@ -472,7 +384,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { address } => to_binary(&query_balance(deps, address)?),
         QueryMsg::TokenInfo {} => to_binary(&query_token_info(deps)?),
-        QueryMsg::Minter {} => to_binary(&query_minter(deps)?),
         QueryMsg::Allowance { owner, spender } => {
             to_binary(&query_allowance(deps, owner, spender)?)
         }
@@ -506,18 +417,6 @@ pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
         total_supply: info.total_supply,
     };
     Ok(res)
-}
-
-pub fn query_minter(deps: Deps) -> StdResult<Option<MinterResponse>> {
-    let meta = TOKEN_INFO.load(deps.storage)?;
-    let minter = match meta.mint {
-        Some(m) => Some(MinterResponse {
-            minter: m.minter.into(),
-            cap: m.cap,
-        }),
-        None => None,
-    };
-    Ok(minter)
 }
 
 pub fn query_marketing_info(deps: Deps) -> StdResult<MarketingInfoResponse> {
@@ -554,35 +453,15 @@ mod tests {
     }
 
     // this will set up the instantiation for other tests
-    fn do_instantiate_with_minter(
-        deps: DepsMut,
-        addr: &str,
-        amount: Uint128,
-        minter: &str,
-        cap: Option<Uint128>,
-    ) -> TokenInfoResponse {
-        _do_instantiate(
-            deps,
-            addr,
-            amount,
-            Some(MinterResponse {
-                minter: minter.to_string(),
-                cap,
-            }),
-        )
-    }
-
-    // this will set up the instantiation for other tests
     fn do_instantiate(deps: DepsMut, addr: &str, amount: Uint128) -> TokenInfoResponse {
-        _do_instantiate(deps, addr, amount, None)
+        _do_instantiate(deps, addr, amount)
     }
 
     // this will set up the instantiation for other tests
     fn _do_instantiate(
         mut deps: DepsMut,
         addr: &str,
-        amount: Uint128,
-        mint: Option<MinterResponse>,
+        amount: Uint128
     ) -> TokenInfoResponse {
         let instantiate_msg = InstantiateMsg {
             name: "Auto Gen".to_string(),
@@ -592,7 +471,6 @@ mod tests {
                 address: addr.to_string(),
                 amount,
             }],
-            mint: mint.clone(),
             marketing: None,
         };
         let info = mock_info("creator", &[]);
@@ -611,7 +489,6 @@ mod tests {
             }
         );
         assert_eq!(get_balance(deps.as_ref(), addr), amount);
-        assert_eq!(query_minter(deps.as_ref()).unwrap(), mint,);
         meta
     }
 
@@ -632,7 +509,6 @@ mod tests {
                     address: String::from("addr0000"),
                     amount,
                 }],
-                mint: None,
                 marketing: None,
             };
             let info = mock_info("creator", &[]);
@@ -652,82 +528,6 @@ mod tests {
             assert_eq!(
                 get_balance(deps.as_ref(), "addr0000"),
                 Uint128::new(11223344)
-            );
-        }
-
-        #[test]
-        fn mintable() {
-            let mut deps = mock_dependencies();
-            let amount = Uint128::new(11223344);
-            let minter = String::from("asmodat");
-            let limit = Uint128::new(511223344);
-            let instantiate_msg = InstantiateMsg {
-                name: "Cash Token".to_string(),
-                symbol: "CASH".to_string(),
-                decimals: 9,
-                initial_balances: vec![Cw20Coin {
-                    address: "addr0000".into(),
-                    amount,
-                }],
-                mint: Some(MinterResponse {
-                    minter: minter.clone(),
-                    cap: Some(limit),
-                }),
-                marketing: None,
-            };
-            let info = mock_info("creator", &[]);
-            let env = mock_env();
-            let res = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap();
-            assert_eq!(0, res.messages.len());
-
-            assert_eq!(
-                query_token_info(deps.as_ref()).unwrap(),
-                TokenInfoResponse {
-                    name: "Cash Token".to_string(),
-                    symbol: "CASH".to_string(),
-                    decimals: 9,
-                    total_supply: amount,
-                }
-            );
-            assert_eq!(
-                get_balance(deps.as_ref(), "addr0000"),
-                Uint128::new(11223344)
-            );
-            assert_eq!(
-                query_minter(deps.as_ref()).unwrap(),
-                Some(MinterResponse {
-                    minter,
-                    cap: Some(limit),
-                }),
-            );
-        }
-
-        #[test]
-        fn mintable_over_cap() {
-            let mut deps = mock_dependencies();
-            let amount = Uint128::new(11223344);
-            let minter = String::from("asmodat");
-            let limit = Uint128::new(11223300);
-            let instantiate_msg = InstantiateMsg {
-                name: "Cash Token".to_string(),
-                symbol: "CASH".to_string(),
-                decimals: 9,
-                initial_balances: vec![Cw20Coin {
-                    address: String::from("addr0000"),
-                    amount,
-                }],
-                mint: Some(MinterResponse {
-                    minter,
-                    cap: Some(limit),
-                }),
-                marketing: None,
-            };
-            let info = mock_info("creator", &[]);
-            let env = mock_env();
-            let err = instantiate(deps.as_mut(), env, info, instantiate_msg).unwrap_err();
-            assert_eq!(
-                err,
-                StdError::generic_err("Initial supply greater than cap").into()
             );
         }
 
@@ -742,7 +542,6 @@ mod tests {
                     symbol: "CASH".to_string(),
                     decimals: 9,
                     initial_balances: vec![],
-                    mint: None,
                     marketing: Some(InstantiateMarketingInfo {
                         project: Some("Project".to_owned()),
                         description: Some("Description".to_owned()),
@@ -782,7 +581,6 @@ mod tests {
                     symbol: "CASH".to_string(),
                     decimals: 9,
                     initial_balances: vec![],
-                    mint: None,
                     marketing: Some(InstantiateMarketingInfo {
                         project: Some("Project".to_owned()),
                         description: Some("Description".to_owned()),
@@ -806,89 +604,6 @@ mod tests {
     }
 
     #[test]
-    fn can_mint_by_minter() {
-        let mut deps = mock_dependencies();
-
-        let genesis = String::from("genesis");
-        let amount = Uint128::new(11223344);
-        let minter = String::from("asmodat");
-        let limit = Uint128::new(511223344);
-        do_instantiate_with_minter(deps.as_mut(), &genesis, amount, &minter, Some(limit));
-
-        // minter can mint coins to some winner
-        let winner = String::from("lucky");
-        let prize = Uint128::new(222_222_222);
-        let msg = ExecuteMsg::Mint {
-            recipient: winner.clone(),
-            amount: prize,
-        };
-
-        let info = mock_info(minter.as_ref(), &[]);
-        let env = mock_env();
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-        assert_eq!(get_balance(deps.as_ref(), genesis), amount);
-        assert_eq!(get_balance(deps.as_ref(), winner.clone()), prize);
-
-        // but cannot mint nothing
-        let msg = ExecuteMsg::Mint {
-            recipient: winner.clone(),
-            amount: Uint128::zero(),
-        };
-        let info = mock_info(minter.as_ref(), &[]);
-        let env = mock_env();
-        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert_eq!(err, ContractError::InvalidZeroAmount {});
-
-        // but if it exceeds cap (even over multiple rounds), it fails
-        // cap is enforced
-        let msg = ExecuteMsg::Mint {
-            recipient: winner,
-            amount: Uint128::new(333_222_222),
-        };
-        let info = mock_info(minter.as_ref(), &[]);
-        let env = mock_env();
-        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert_eq!(err, ContractError::CannotExceedCap {});
-    }
-
-    #[test]
-    fn others_cannot_mint() {
-        let mut deps = mock_dependencies();
-        do_instantiate_with_minter(
-            deps.as_mut(),
-            &String::from("genesis"),
-            Uint128::new(1234),
-            &String::from("minter"),
-            None,
-        );
-
-        let msg = ExecuteMsg::Mint {
-            recipient: String::from("lucky"),
-            amount: Uint128::new(222),
-        };
-        let info = mock_info("anyone else", &[]);
-        let env = mock_env();
-        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert_eq!(err, ContractError::Unauthorized {});
-    }
-
-    #[test]
-    fn no_one_mints_if_minter_unset() {
-        let mut deps = mock_dependencies();
-        do_instantiate(deps.as_mut(), &String::from("genesis"), Uint128::new(1234));
-
-        let msg = ExecuteMsg::Mint {
-            recipient: String::from("lucky"),
-            amount: Uint128::new(222),
-        };
-        let info = mock_info("genesis", &[]);
-        let env = mock_env();
-        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert_eq!(err, ContractError::Unauthorized {});
-    }
-
-    #[test]
     fn instantiate_multiple_accounts() {
         let mut deps = mock_dependencies();
         let amount1 = Uint128::from(11223344u128);
@@ -909,7 +624,6 @@ mod tests {
                     amount: amount2,
                 },
             ],
-            mint: None,
             marketing: None,
         };
         let info = mock_info("creator", &[]);
@@ -1028,55 +742,6 @@ mod tests {
     }
 
     #[test]
-    fn burn() {
-        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
-        let addr1 = String::from("addr0001");
-        let amount1 = Uint128::from(12340000u128);
-        let burn = Uint128::from(76543u128);
-        let too_much = Uint128::from(12340321u128);
-
-        do_instantiate(deps.as_mut(), &addr1, amount1);
-
-        // cannot burn nothing
-        let info = mock_info(addr1.as_ref(), &[]);
-        let env = mock_env();
-        let msg = ExecuteMsg::Burn {
-            amount: Uint128::zero(),
-        };
-        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert_eq!(err, ContractError::InvalidZeroAmount {});
-        assert_eq!(
-            query_token_info(deps.as_ref()).unwrap().total_supply,
-            amount1
-        );
-
-        // cannot burn more than we have
-        let info = mock_info(addr1.as_ref(), &[]);
-        let env = mock_env();
-        let msg = ExecuteMsg::Burn { amount: too_much };
-        let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert!(matches!(err, ContractError::Std(StdError::Overflow { .. })));
-        assert_eq!(
-            query_token_info(deps.as_ref()).unwrap().total_supply,
-            amount1
-        );
-
-        // valid burn reduces total supply
-        let info = mock_info(addr1.as_ref(), &[]);
-        let env = mock_env();
-        let msg = ExecuteMsg::Burn { amount: burn };
-        let res = execute(deps.as_mut(), env, info, msg).unwrap();
-        assert_eq!(res.messages.len(), 0);
-
-        let remainder = amount1.checked_sub(burn).unwrap();
-        assert_eq!(get_balance(deps.as_ref(), addr1), remainder);
-        assert_eq!(
-            query_token_info(deps.as_ref()).unwrap().total_supply,
-            remainder
-        );
-    }
-
-    #[test]
     fn send() {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
         let addr1 = String::from("addr0001");
@@ -1161,7 +826,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1215,7 +879,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1268,7 +931,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1321,7 +983,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1374,7 +1035,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1427,7 +1087,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1480,7 +1139,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1537,7 +1195,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1590,7 +1247,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1639,7 +1295,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1689,7 +1344,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1740,7 +1394,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1790,7 +1443,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1847,7 +1499,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
@@ -1897,7 +1548,6 @@ mod tests {
                 symbol: "CASH".to_string(),
                 decimals: 9,
                 initial_balances: vec![],
-                mint: None,
                 marketing: Some(InstantiateMarketingInfo {
                     project: Some("Project".to_owned()),
                     description: Some("Description".to_owned()),
