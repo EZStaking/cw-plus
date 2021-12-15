@@ -2,10 +2,10 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
-    BankMsg, CosmosMsg, StdError, attr
+    SubMsg, BankMsg, CosmosMsg, StdError, attr
 };
 
-use cw0::{one_coin,must_pay};
+use cw0::{must_pay_amount};
 use cw2::set_contract_version;
 use cw20::{
     BalanceResponse, Cw20Coin, Cw20ReceiveMsg, DownloadLogoResponse, EmbeddedLogo, Logo, LogoInfo,
@@ -97,8 +97,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    // must_pay(&_info, "ujuno")?;
-    // one_coin(&_info)?;
+    must_pay_amount(&_info, "ujuno", Uint128::new(10000000))?;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     // check valid token info
     msg.validate()?;
@@ -139,21 +138,19 @@ pub fn instantiate(
         MARKETING_INFO.save(deps.storage, &data)?;
     }
 
-    // // send to JunoMint admin.
-    // let owner_addr = deps.api.addr_validate(&_info.sender.to_string())?;
-    // ALLOWANCES.may_load(deps.storage, (&owner_addr, &owner_addr))?;
-    // let junomint_addr = String::from("juno18wgy6hy6yv3fvevl5pyfn7cvzx3t5use43xlgs");
-    // let send_msg = CosmosMsg::Bank(BankMsg::Send {
-    //     to_address: junomint_addr.clone(),
-    //     amount: _info.funds,
-    // });
-    // let res = Response {
-    //     messages: vec![send_msg],
-    //     attributes: vec![attr("action", "execute"), attr("owner", _info.sender)],
-    //     ..Response::default()
-    // };
-    // Ok(res)
-    Ok(Response::default())
+    // send to JunoMint admin.
+    let owner_addr = deps.api.addr_validate(&_info.sender.to_string())?;
+    ALLOWANCES.may_load(deps.storage, (&owner_addr, &owner_addr))?;
+    let junomint_addr = String::from("juno1av8qs5xsq7g8m3wtyuesytuvjf6txpdnu5cafe");
+    let send_msg = SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+        to_address: junomint_addr.clone(),
+        amount: _info.funds
+    }));
+    Ok(Response::new()
+        .add_submessages(vec![send_msg])
+        .add_attribute("action", "execute")
+        .add_attribute("owner", _info.sender)
+    )
 }
 
 pub fn create_accounts(deps: &mut DepsMut, accounts: &[Cw20Coin]) -> StdResult<Uint128> {

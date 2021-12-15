@@ -12,7 +12,7 @@ pub use parse_reply::{
     parse_execute_response_data, parse_instantiate_response_data, parse_reply_execute_data,
     parse_reply_instantiate_data, MsgExecuteContractResponse, MsgInstantiateContractResponse,
 };
-pub use payment::{may_pay, must_pay, must_pay_amount, nonpayable, one_coin, one_coin_amount, PaymentError};
+pub use payment::{may_pay, must_pay, must_pay_amount, nonpayable, one_coin, coin_amount, PaymentError};
 
 pub use crate::balance::NativeBalance;
 pub use crate::event::Event;
