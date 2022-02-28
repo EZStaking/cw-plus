@@ -1101,9 +1101,9 @@ dependencies = [
 
 [[package]]
 name = "junomint-prices"
-version = "1.0.13"
+version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dd8f8fd144e8b2f950f6133cb9110065e6b0d4b932d780c0d09e7c2e969404d"
+checksum = "688bb1381ee3dfa3d53480541a0f3cc203de8515d5e824059d368362368318b5"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",

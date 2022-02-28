@@ -7,7 +7,7 @@ use cw20::{
     BalanceResponse, Cw20Coin, Cw20ReceiveMsg, DownloadLogoResponse, EmbeddedLogo, Logo, LogoInfo,
     MarketingInfoResponse, MinterResponse, TokenInfoResponse,
 };
-use junomint_prices::query::SwapDetailsResponse;
+use junomint_prices::query::{SwapDetailsPriceResponse};
 
 use crate::allowances::{
     execute_burn_from, execute_decrease_allowance, execute_increase_allowance, execute_send_from,
@@ -92,7 +92,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let price: SwapDetailsResponse = junomint_prices::tools::query_code_price(
+    let price: SwapDetailsPriceResponse = junomint_prices::tools::query_code_price(
         deps.as_ref(),
         "juno1ztrdwkg3krgg7ddjchheyvwhmzwwce3j2ctp3qfx67fysnqlk78svl5jz0".parse().unwrap(),
         "common".parse().unwrap()
