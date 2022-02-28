@@ -95,7 +95,7 @@ pub fn instantiate(
     let price: SwapDetailsResponse = junomint_prices::tools::query_code_price(
         deps.as_ref(),
         "juno1ztrdwkg3krgg7ddjchheyvwhmzwwce3j2ctp3qfx67fysnqlk78svl5jz0".parse().unwrap(),
-        "unlimited".parse().unwrap()
+        "standard".parse().unwrap()
     )?;
     junomint_prices::tools::must_pay_amount(&_info, "ujunox", price.token1_amount)?;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
