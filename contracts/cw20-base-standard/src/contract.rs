@@ -443,7 +443,7 @@ mod tests {
 
     // this will set up the instantiation for other tests
     fn do_instantiate(deps: DepsMut, addr: &str, amount: Uint128) -> TokenInfoResponse {
-        _do_instantiate(deps, addr, amount, None)
+        _do_instantiate(deps, addr, amount)
     }
 
     // this will set up the instantiation for other tests

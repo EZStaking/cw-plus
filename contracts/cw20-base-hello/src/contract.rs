@@ -369,7 +369,6 @@ mod tests {
                     address: String::from("addr0000"),
                     amount,
                 }],
-                mint: None,
                 marketing: None,
             };
             let info = mock_info("creator", &[]);
@@ -468,7 +467,6 @@ mod tests {
                     amount: amount2,
                 },
             ],
-            mint: None,
             marketing: None,
         };
         let info = mock_info("creator", &[]);

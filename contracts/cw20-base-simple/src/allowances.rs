@@ -232,7 +232,6 @@ mod tests {
                 address: addr.into(),
                 amount,
             }],
-            mint: None,
             marketing: None,
         };
         let info = mock_info("creator", &[]);
