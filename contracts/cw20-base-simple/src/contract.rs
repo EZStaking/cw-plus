@@ -34,7 +34,7 @@ pub fn instantiate(
         "juno1tthly9h9s7svmt0ug3p9qfz6tz6fg73kysghdglgwp7khdt4eymqup8py6".parse().unwrap(),
         "simple".parse().unwrap()
     )?;
-    junomint_prices::tools::must_pay_amount(&_info, "ujunox", price.token1_amount)?;
+    junomint_prices::tools::must_pay_amount(&_info, "ujuno", price.token1_amount)?;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     // check valid token info
     msg.validate()?;
