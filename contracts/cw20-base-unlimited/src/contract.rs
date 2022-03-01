@@ -94,7 +94,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     let price: SwapDetailsPriceResponse = junomint_prices::tools::query_code_price(
         deps.as_ref(),
-        "juno1nqa6fthpw586ztltc2utvkgdxwu8nkxls6cnjzshldc0cs9qkajsva720a".parse().unwrap(),
+        "juno1tthly9h9s7svmt0ug3p9qfz6tz6fg73kysghdglgwp7khdt4eymqup8py6".parse().unwrap(),
         "unlimited".parse().unwrap()
     )?;
     junomint_prices::tools::must_pay_amount(&_info, "ujunox", price.token1_amount)?;
